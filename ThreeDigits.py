@@ -2,7 +2,8 @@
 # When run:  python 3308.py B puzzle.txt
 import sys
 from Number import Number
-
+import copy
+   
 
 ################################################
 # Read everything and store as variables
@@ -24,7 +25,7 @@ def read_the_input(filename):
 # To do search, the search list must be quene (FIFO) 
 # not stack (LIFO)
 ################################################
-def print_path(value):
+def print_path(value): # Only one parent for each node, so track back
 	temp = []
 	parent = value.get_parent()
 	while parent != None:
@@ -57,135 +58,134 @@ def is_in_forbidden(value, forbidden_list): # forbidden_list is int list
 	    if value_int == forbidden_list[i]:
              return True
 
-# BFS will return the value and expanded_list for printing
-def BFS(start,goal,forbidden_list):
-	start_value = Number(value=start, digit_flag=-1,parent=None) # parent of it: is None
-	goal_value = Number(value=start, digit_flag=-1,parent=None) # parent: is None
-	
-	expanded_list = []
-	fringe = []
-	
-	expanded_list.append(start_value)
-	next_one = start_value # Intialize next_one, later it will change
-	fringe.append(next_one)
-	
-	#-------------------------------------------------------------------------------
-	counter = 0
-	while counter<1000:
-		
-		'''
-		# Corner case: fringe is empty
-		if len(fringe)==0: # if fringe is empty list
-			print_path(next_one) # For Tree, each child ONLY has 1 parent
-			print_expanded_list(expanded_list)
-			break
-		'''
-		
-		# Corner case: we reach the goal
-		if next_one.is_number_equals(goal_value):
-			print_path(next_one) 
-			print_expanded_list(expanded_list)
-			break
-
-		# Corner case: if next_one is in expanded list (already expanded before)
-		for x in range(0,len(expanded_list)):
-			if next_one.expand_equals(expanded_list[x]): 
-				# if the next one is the same as expanded_list, then to avoid cycles, 
-				# this next_one will not add to expanded_list				
-				fringe.remove(next_one)
-			else:
-				pass
-		
-		# normal case: chech if the same digit is changed in successive moves
-		#------------------------------------------------------------------------
-		# get_digit_flag()=1: cannot change first digit
-		if next_one.get_digit_flag()!=1:
+def generate_BFS_children_node(next_one, forbidden_list):
+    '''
+    next_one is the node that we want to get its children by following constraints
+    BFS adds fringes node like a queue
+    '''
+    fringe_for_this_node = []
+    # chech if the same digit is changed in successive moves
+    
+    # get_digit_flag()=1: cannot change first digit
+    if next_one.get_digit_flag()!=1:
+        # check if 0 or 9 at this digit
+        if next_one.get_first_digit()!=0:
+            new_node = Number(first = next_one.get_first_digit()-1,\
+						second = next_one.get_second_digit(), \
+						third = next_one.get_third_digit(), \
+						digit_flag=1, parent = next_one)
+            if is_in_forbidden(new_node,forbidden_list) == False:
+                fringe_for_this_node.append(new_node)	
+        if next_one.get_first_digit()!=9:
+            new_node = Number(first = next_one.get_first_digit()+1,\
+						second = next_one.get_second_digit(), \
+						third = next_one.get_third_digit(), \
+						digit_flag=1, parent = next_one)		
+            if is_in_forbidden(new_node,forbidden_list) == False:
+                fringe_for_this_node.append(new_node)	
+    #------------------------------------------------------------------------
+	# get_digit_flag()=2: cannot change second digit
+    if next_one.get_digit_flag()!=2:
 			
-			# check if 0 or 9 at this digit
-			if next_one.get_first_digit()!=0:
-				new_node = Number(first = next_one.get_first_digit()-1,\
-								  second = next_one.get_second_digit(), \
-								  third = next_one.get_third_digit(), \
-								  digit_flag=1, parent = next_one)
-				# if the new_node is not in forbidden list, we add it to fringe (not expanded_list)
-				if is_in_forbidden(new_node,forbidden_list) == False:
-					fringe.append(new_node)
-			elif next_one.get_first_digit()!=9:
-				new_node = Number(first = next_one.get_first_digit()+1,\
-								  second = next_one.get_second_digit(), \
-								  third = next_one.get_third_digit(), \
-								  digit_flag=1, parent = next_one)		
-				if is_in_forbidden(new_node,forbidden_list) == False:
-					fringe.append(new_node)
-		    		
-		#------------------------------------------------------------------------
-		# get_digit_flag()=2: cannot change second digit
-		if next_one.get_digit_flag()!=2:
-			
-			# check if 0 or 9 at this digit
-			if next_one.get_second_digit()!=0:
-				new_node = Number(first = next_one.get_first_digit(),\
+		# check if 0 or 9 at this digit
+        if next_one.get_second_digit()!=0:
+            new_node = Number(first = next_one.get_first_digit(),\
 								  second = next_one.get_second_digit()-1, \
 								  third = next_one.get_third_digit(), \
 								  digit_flag=2, parent = next_one)
-				# if the new_node is not in forbidden list, we add it to fringe (not expanded_list)
-				if is_in_forbidden(new_node,forbidden_list) == False:
-					fringe.append(new_node)
-			elif next_one.get_second_digit()!=9:
-				new_node = Number(first = next_one.get_first_digit(),\
+            if is_in_forbidden(new_node,forbidden_list) == False:
+                fringe_for_this_node.append(new_node)	
+        if next_one.get_second_digit()!=9:
+            new_node = Number(first = next_one.get_first_digit(),\
 								  second = next_one.get_second_digit()+1, \
 								  third = next_one.get_third_digit(), \
 								  digit_flag=2, parent = next_one)		
-				if is_in_forbidden(new_node,forbidden_list) == False:
-					fringe.append(new_node)
-
-		#------------------------------------------------------------------------
-		# get_digit_flag()=3: cannot change third digit
-		if next_one.get_digit_flag()!=3:
+            if is_in_forbidden(new_node,forbidden_list) == False:
+                fringe_for_this_node.append(new_node)	
+    #------------------------------------------------------------------------
+	# get_digit_flag()=3: cannot change third digit
+    if next_one.get_digit_flag()!=3:
 			
 			# check if 0 or 9 at this digit
-			if next_one.get_third_digit()!=0:
-				new_node = Number(first = next_one.get_first_digit(),\
+            if next_one.get_third_digit()!=0:
+                new_node = Number(first = next_one.get_first_digit(),\
 								  second = next_one.get_second_digit(), \
 								  third = next_one.get_third_digit()-1, \
 								  digit_flag=3, parent = next_one)
-				# if the new_node is not in forbidden list, we add it to fringe (not expanded_list)
-				if is_in_forbidden(new_node,forbidden_list) == False:
-					fringe.append(new_node)
-			elif next_one.get_third_digit()!=9:
-				new_node = Number(first = next_one.get_first_digit(),\
+                if is_in_forbidden(new_node,forbidden_list) == False:
+                    fringe_for_this_node.append(new_node)
+            if next_one.get_third_digit()!=9:
+                new_node = Number(first = next_one.get_first_digit(),\
 								  second = next_one.get_second_digit(), \
 								  third = next_one.get_third_digit()+1, \
 								  digit_flag=3, parent = next_one)		
-				if is_in_forbidden(new_node,forbidden_list) == False:
-					fringe.append(new_node)		
-		
-		# once we assign new_node to next_one, the new_node should be removed from fringe list
-		next_one = fringe.pop(0) 
-		
-		counter = counter+1
-		'''
-		# after 1000 loops, if no solution found, print the results
-		print('No Solution found')
-		print_expanded_list(expanded_list)
-		'''
-	#-------------------------------------------------------------------------------	
-    # after 1000 loop, no path is found, then
+                if is_in_forbidden(new_node,forbidden_list) == False:
+                    fringe_for_this_node.append(new_node)		
+    
+    return fringe_for_this_node 
 
 
 
+# BFS will return the value and expanded_list for printing
+# returns two variables: next_one, expanded_list
+def BFS(start,goal,forbidden_list):
+    start_value = Number(value=start, digit_flag=-1,parent=None) # parent of it: is None
+    goal_value = Number(value=goal, digit_flag=-1,parent=None) # parent: is None
+	
+    expanded_list = []
+    fringe = []
+	
+    next_one = copy.deepcopy(start_value) # next_one is a different object from start_value
+    fringe.append(next_one)
+    #-------------------------------------------------------------------------------
+    while next_one.is_number_equals(goal_value)==False: 
+       
+        # Corner Case: if after 1000 loop, no path is found, then just stop
+        if len(expanded_list) == 1000:
+            return next_one, expanded_list
 
+		# Corner case: if next_one is in expanded list (already expanded before), no need to allow it stay in fringe        
+        
+        for x in range(0,len(expanded_list)):
+            if next_one.expand_equals(expanded_list[x]): 
+				# if the next one is the same as expanded_list, then to avoid cycles, 
+				# this next_one will not add to expanded_list				
+                fringe.remove(next_one)
+            else:
+                expanded_list.append(next_one) # NOTE: before next loop, we need remove next_one from fringe
+		              
+		# Normal case: get the children nodes for current node next_one,        
+        # and add all the possible nodes into fringe
+        fringe_for_this_node = generate_BFS_children_node(next_one, forbidden_list)
+        # Now we can add the fringe_for_this_node (i.e. children for this node) to the total fringe list
+        # NOTE: add the fringe_for_this_node at the end of fringe --> this is how BFS works
+        fringe = fringe + fringe_for_this_node 
+		# now the fringe is: [next_one,x1,x2,x3,...], we need to remove next_one
+        del fringe[0]
+        # now the fringe is:[x1,x2,x3,x4,...], and x1 becomes next_one
+        next_one = fringe[0]
+
+        # Corner case: fringe is empty but we still cannot find solution
+        if len(fringe)==0 and next_one.is_number_equals(goal_value)==False: 
+            return next_one, expanded_list
+    #-------------------------------------------------------------------------------	
+    # After some time, the while loop condition is false --> we find the goal
+    if next_one.is_number_equals(goal_value):
+        # it means next_one is goal, but in expand_list the goal is not included
+        expanded_list.append(next_one)
+        return next_one, expanded_list
 
 
 ################################################
 # Now we can run the script
 ################################################
 filename = 'puzzle.txt'
-start_state, goal_state,forbidden_states = read_the_input(filename)
-BFS(start_state,goal_state,forbidden_states)
+start, goal,forbidden_states = read_the_input(filename)
 
+next_one, expanded_list = BFS(start,goal,forbidden_states)
 
-
+#print_path(next_one)
+#print_expanded_list(expanded_list)
 
 
 
