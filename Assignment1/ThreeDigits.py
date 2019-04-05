@@ -1,4 +1,3 @@
-# Yang Gao 450614082 
 # When run:  python 3308.py B puzzle.txt
 from Number import Number
 import copy
@@ -302,217 +301,208 @@ def generate_uninformed_children_node(next_one,forbidden_list):
 ###################################################################
 # Breath-first search
 ###################################################################
-# returns two variables: next_one, expanded_list
-def BFS(start,goal,forbidden_list):
-    '''
-    start, goal are int
-    '''
-    start_value = Number(value=start, digit_flag=-1,parent=None) # parent of it: is None
-    start_value.set_1_2_3_digits_and_values( extract_digits_from_value(start) )
-    goal_value = Number(value=goal, digit_flag=-1,parent=None) # parent: is None
-    goal_value.set_1_2_3_digits_and_values( extract_digits_from_value(goal) )
-
+# returns two variables: current_node, expanded_list
+def BFS(start_state,goal_state,forbidden_list):
+    
+    goal_node = Number(value=goal_state, digit_flag=-1,parent=None) 
+    goal_node.set_1_2_3_digits_and_values( extract_digits_from_value(goal_state) )
+    goal_node.set_h_value( calculate_manhattan_h(goal_node, goal_node) )
+    # start node can only be construct after goal node is construct
+    start_node = Number(value=start_state, digit_flag=-1,parent=None) 
+    start_node.set_1_2_3_digits_and_values( extract_digits_from_value(start_state) )
+    start_node.set_h_value( calculate_manhattan_h(start_node, goal_node) )
+ 
+    # Initialization
+    current_node = copy.deepcopy(start_node)
     expanded_list = []
     fringe = []
-    next_one = copy.deepcopy(start_value) # next_one is a different object from start_value
     #-------------------------------------------------------------------------------
-    while next_one.is_number_equals(goal_value)==False: 
-        expanded_list.append(next_one) # NOTE: before next loop, we need remove next_one from fringe
-    
-        # Corner Case: if after 1000 loop, no path is found, then just stop
-        if len(expanded_list) == 1000:
-            return next_one, expanded_list
+    while current_node.is_number_equals(goal_node)==False and len(expanded_list) < 1000:
+        # add the current node to expand list
+        expanded_list.append(current_node)
 
-		# Normal case: get the children nodes for current node next_one,        
-        # and add all the possible nodes into fringe   
-        fringe_for_this_node = generate_uninformed_children_node(next_one, forbidden_list)
-        # Now we can add the fringe_for_this_node (i.e. children for this node) to the total fringe list
-        # NOTE: add the fringe_for_this_node at the end of fringe --> this is how BFS works
-        fringe = fringe + fringe_for_this_node 
-        '''
-        print([node.value for node in fringe])
-        break
-        '''
+        children = generate_uninformed_children_node(current_node,forbidden_list)
+        fringe = fringe + children
+        # print([node.value for node in fringe])
         
-        # now the fringe is: [x1,x2,x3,...], we assume x1 as next_one, but also need to check if this is true
-        next_one = fringe[0] # assign x1 to next_one
-		# Corner case: if next_one is in expanded list (already expanded before), delete it from fringe, AND assign next_one the new value        
-        for each_node in expanded_list:
-            if next_one.expand_equals(each_node)==True: # if x1 is in expanded_list
-                del fringe[0] # delete x1
-                next_one = fringe[0] # assign x2 to next_one
-                break
+        # To expand the 1st node in fringe, we need to check if we can expand it
+        # Reference: https://github.com/jess-ha
+        for unexpanded_node in fringe:
+            # if the node in fringe has same value as in expanded_list
+            # then check if the digit_flag is same as well, if yes, then they are same node
+            expanded_values = [node.value for node in expanded_list]
+            if unexpanded_node.value in expanded_values:                
+                if unexpanded_node.is_in_expand_list(expanded_list):
+                    del unexpanded_node
+                # if the digit_flag is different, then they are not same node, so we can use this node coming from fringe
+                else:
+                    current_node = unexpanded_node
+                    del unexpanded_node
+                    break
             else:
-                pass
-        # If no repetitive node in fringe after the for loop, just delete x1
-        del fringe[0] 
-    
-        # Corner case: fringe is empty but we still cannot find solution
-        if len(fringe)==0 and next_one.is_number_equals(goal_value)==False: 
-            return next_one, expanded_list
+                # if the node in fringe has different value in expanded_list, then of course we can use it
+                current_node = unexpanded_node
+                del unexpanded_node
+                break
 
-    #-------------------------------------------------------------------------------	
-    # After some time, the while loop condition is false --> we find the goal
-    if next_one.is_number_equals(goal_value):
-        # it means next_one is goal, but in expand_list the goal is not included
-        expanded_list.append(next_one)
-        #print([node.value for node in expanded_list])
-        return next_one, expanded_list
+        # Corner case: cannot find solution even if fringe is expanded completely
+        if len(fringe) == 0 and current_node.is_number_equals(goal_node)==False:
+            return current_node, expanded_list
+    #-------------------------------------------------------------------------------
+    # After the while loop is break, we get the goal node
+    expanded_list.append(current_node)
+    return current_node, expanded_list
+
 
 ##############################################################################
-# Ddpth-First Search
+# Depth-First Search
 ##############################################################################
-# returns two variables: next_one, expanded_list
-def DFS(start,goal,forbidden_list): # start, goal are int
+# returns two variables: current_node, expanded_list
+def DFS(start,goal,forbidden_list): 
     
-    start_value = Number(value=start, digit_flag=-1,parent=None) 
-    start_value.set_1_2_3_digits_and_values( extract_digits_from_value(start) )
-    goal_value = Number(value=goal, digit_flag=-1,parent=None) 
-    goal_value.set_1_2_3_digits_and_values( extract_digits_from_value(goal) )
-
+    goal_node = Number(value=goal, digit_flag=-1,parent=None) 
+    goal_node.set_1_2_3_digits_and_values( extract_digits_from_value(goal) )
+    goal_node.set_h_value( calculate_manhattan_h(goal_node, goal_node) )
+    
+    start_node = Number(value=start, digit_flag=-1,parent=None) 
+    start_node.set_1_2_3_digits_and_values( extract_digits_from_value(start) )
+    start_node.set_h_value( calculate_manhattan_h(start_node, goal_node) )
+    
+    current_node = copy.deepcopy(start_node)
     expanded_list = []
     fringe = []
-    next_one = copy.deepcopy(start_value) 
     #-------------------------------------------------------------------------------
-    while next_one.is_number_equals(goal_value)==False: 
-        expanded_list.append(next_one) # NOTE: before next loop, we need remove next_one from fringe
-    
-        # Corner Case: if after 1000 loop, no path is found, then just stop
-        if len(expanded_list) == 1000:
-             return next_one, expanded_list
-
-        fringe_for_this_node = generate_uninformed_children_node(next_one, forbidden_list)
-        # different from BFS, the children node should be in the front in DFS
-        fringe = fringe_for_this_node + fringe
+    while current_node.is_number_equals(goal_node)==False and len(expanded_list) < 1000:
+        expanded_list.append(current_node)
+        children = generate_uninformed_children_node(current_node,forbidden_list)
+        fringe = children + fringe
         
-        # now the fringe is: [x1,x2,x3,...], we assume x1 as next_one, but also need to check if this is true
-        next_one = fringe[0] # assign x1 to next_one
-		# Corner case: if next_one is in expanded list (already expanded before), delete it from fringe, AND assign next_one the new value        
-        for each_node in expanded_list:
-            if next_one.value == each_node.value and next_one.digit_flag != each_node.digit_flag : # if x1 is in expanded_list
-                del fringe[0] # delete x1
-                next_one = fringe[0] # assign x2 to next_one
-                break
+        # To expand the 1st node in fringe, we need to check if we can expand it        
+        for unexpanded_node in fringe:
+            # if the node in fringe has same value as in expanded_list
+            # then check if the digit_flag is same as well, if yes, then they are same node
+            if unexpanded_node.value in [node.value for node in expanded_list]:
+                if unexpanded_node.is_in_expand_list(expanded_list) == False:
+                    current_node = unexpanded_node
+                    fringe.remove(unexpanded_node)
+                    break
             else:
-                pass
-        # If no repetitive node in fringe after the for loop, just delete x1
-        del fringe[0] 
+                current_node = unexpanded_node
+                fringe.remove(unexpanded_node)
+                break           
+
+        
+        
+        # Corner case: cannot find solution even if fringe is expanded completely
+        if len(fringe) == 0 and current_node.is_number_equals(goal_node)==False:
+            return current_node, expanded_list
+    #-------------------------------------------------------------------------------
+    # After the while loop is break, we get the goal node
+    expanded_list.append(current_node)
+    return current_node, expanded_list
+
     
-        # Corner case: fringe is empty but we still cannot find solution
-        if len(fringe)==0 and next_one.is_number_equals(goal_value)==False: 
-            return next_one, expanded_list
-
-    #-------------------------------------------------------------------------------	
-    # After some time, the while loop condition is false --> we find the goal
-    if next_one.is_number_equals(goal_value):
-        expanded_list.append(next_one)
-        return next_one, expanded_list
-
 ############################################################################
 # Iterative Deepening Search
 # From lecture: deep-limit search impose a cut-off on maximal depth,
 # So IDS is the loop of DLS until solution is found
 ############################################################################
-# returns two variables: next_one, expanded_list
+# returns two variables: current_node, expanded_list
 def IDS(start,goal,forbidden_list): # start, goal are int
 
     goal_value = Number(value=goal, digit_flag=-1,parent=None) 
     goal_value.set_1_2_3_digits_and_values( extract_digits_from_value(goal) )
     expanded_list = []
-    
     #-------------------------------------------------------------------------------	
     depth_limit = 0
-    max_len_of_expanded_list = 1000 # 1000 nodes allowed
+    max_len_of_expanded_list = 1000
+    
     while len(expanded_list) < 1000:
         # do deep-limit search on given depth
-        dls_next_one, deep_limit_list = DLS(start,goal,forbidden_list,max_len_of_expanded_list,depth_limit)
+        dls_current_node, deep_limit_list = DLS(start,goal_value,forbidden_list,max_len_of_expanded_list,depth_limit)
+        
         # after one DLS check, we will add the depth limit
         depth_limit = depth_limit + 1
+        
         # Get the dls expanded_list, and add it to the current expanded_list        
         expanded_list = expanded_list + deep_limit_list
+        
         # loop should less than 1000, but if 1000 loops are finished --> cannot find solution yet
         max_len_of_expanded_list = max_len_of_expanded_list - len(deep_limit_list)
         if max_len_of_expanded_list <= 0:
-            return dls_next_one, expanded_list
+            return dls_current_node, expanded_list
+       
         # If we find goal, just return the results
-        if dls_next_one.is_number_equals(goal_value):
-            return dls_next_one, expanded_list
+        if dls_current_node.is_number_equals(goal_value):
+            return dls_current_node, expanded_list
     #-------------------------------------------------------------------------------	
-    
     # After some time, the while loop condition is false --> we find the goal
-    return dls_next_one, expanded_list
+    return dls_current_node, expanded_list
 
 
-# Why adding max_len_of_expanded_list as input? since cut-off is 1000 nodes
-def DLS(start,goal,forbidden_list,max_len_of_expanded_list,depth_limit): 
 
+def DLS(start,goal_value,forbidden_list,max_len_of_expanded_list,depth_limit): 
+    '''
+    start: int    goal_value: node
+    Why adding max_len_of_expanded_list as input? since cut-off is 1000 nodes
+    '''
     start_value = Number(value=start, digit_flag=-1,parent=None,depth=0) 
     start_value.set_1_2_3_digits_and_values( extract_digits_from_value(start) )
-    goal_value = Number(value=goal, digit_flag=-1,parent=None) 
-    goal_value.set_1_2_3_digits_and_values( extract_digits_from_value(goal) )
-
     expanded_list = []
     expanded_list.append(start_value) # Initialize expanded_list with start value!
-    fringe = []
-    next_one = copy.deepcopy(start_value) 
     
-    # Corner case: just search level = 0
+    # Corner case: just search level = 0, so expanded_list only contains start_node
     if depth_limit == 0:
         return start_value, expanded_list
-    
+
+    current_node = copy.deepcopy(start_value)
+    fringe = []
+
     #-------------------------------------------------------------------------------	
-    while next_one.is_number_equals(goal_value) == False:
-        
-        # Corner case: more than 1000 nodes
-        if len(expanded_list) == max_len_of_expanded_list:
-            return next_one, expanded_list
-         
+    while (current_node.is_number_equals(goal_value) == False and len(expanded_list) < max_len_of_expanded_list):
+                 
         # Corner case: the next_node is in forbidden list, and fringe still has some nodes
         # Discard the current next_one, and take the first node from fringe as new next_one
-        if is_in_forbidden(next_one,forbidden_list) == True and len(fringe) != 0:
-            next_one = fringe.pop(0)
-
+        if is_in_forbidden(current_node,forbidden_list) == True and len(fringe) != 0:
+            current_node = fringe.pop(0)
         
         # Normal case: the node is not in forbidden list, and the deep limit is not reached,
         # so the loop will start to expand the fringe_list
         fringe_for_this_node=[]
-        if is_in_forbidden(next_one,forbidden_list) == False:
-            if next_one.depth < depth_limit:
+        if is_in_forbidden(current_node,forbidden_list) == False:
+            if current_node.depth < depth_limit:
                 # fringe_for_this_node can guarantee that children nodes are not in forbidden list
-                fringe_for_this_node = generate_uninformed_children_node(next_one, forbidden_list)
-
-        # Add the children nodes to fringe, make sure the added children are not in expanded_list
-        fringe_for_this_node_copy = copy.deepcopy(fringe_for_this_node)
-        for each_child in fringe_for_this_node_copy:               
-            for each_node in expanded_list:
-                if each_child.expand_equals(each_node)== True:
-                    fringe_for_this_node.remove(each_child)
-                else:
-                    pass
+                fringe_for_this_node = generate_uninformed_children_node(current_node, forbidden_list)
+                fringe_for_this_node = fringe_for_this_node[::-1]
                 
-        fringe = fringe_for_this_node + fringe 
-        # print([node.value for node in fringe])
-        
-        # Corner case: No solution is found
-        if len(fringe) == 0:
-            return next_one, expanded_list   
+        # check if children nodes are in expanded_list, if not add it to the front of fringe
+        for child in fringe_for_this_node:
+            if child.is_in_expand_list(expanded_list)== False:
+                fringe.insert(0,child)
 
-        # Update the new next_one node
-        next_one = fringe.pop(0)
-        for each_node in expanded_list:
-            if next_one.expand_equals(each_node)== False:
-                expanded_list.append(next_one)
+        # check if children nodes are in expanded_list, if yes, add it to the front from fringe
+        for node in fringe:
+            if node.is_in_expand_list(expanded_list)== True:
+                fringe.remove(node)
+                   
+        # Corner case: fringe is empty after updating
+        if (len(fringe) == 0 and current_node.is_number_equals(goal_value) == False):
+            return current_node, expanded_list
 
+        # To check if 1st node in fringe could be expanded
+        current_node = fringe.pop(0)
+        if (current_node.value in [node.value for node in expanded_list] and current_node.is_in_expand_list(expanded_list)== False):
+            expanded_list.append(current_node)
+        else:
+            expanded_list.append(current_node)
     #-------------------------------------------------------------------------------	
-    return next_one, expanded_list
-
-
+    return current_node, expanded_list
 
 ############################################################################
 # Hill-Climbing Search: Manhattan heuristic
 ############################################################################
-# returns two variables: next_one, expanded_list
-def hill_climb(start,goal,forbidden_list): # start, goal are int
+# returns two variables: current_node, expanded_list
+def hill_climb(start,goal,forbidden_list): 
 
     start_value = Number(value=start, digit_flag=-1,parent=None) 
     start_value.set_1_2_3_digits_and_values( extract_digits_from_value(start) )
@@ -523,195 +513,233 @@ def hill_climb(start,goal,forbidden_list): # start, goal are int
     goal_value.set_h_value( calculate_manhattan_h(goal_value, goal_value) )
 
     expanded_list = []
-    fringe = []
-    next_one = copy.deepcopy(start_value) 
+    current_node = copy.deepcopy(start_value) 
     #-------------------------------------------------------------------------------
-    while next_one.is_number_equals(goal_value)==False: 
-        expanded_list.append(next_one) # NOTE: before next loop, we need remove next_one from fringe
-    
-        # Corner Case: if after 1000 loop, no path is found, then just stop
-        if len(expanded_list) == 1000:
-            return next_one, expanded_list
+    while current_node.is_number_equals(goal_value)==False and len(expanded_list) < 1000: 
+        # Hill climb is local optimal method, the fringe should be updated during each loop
+        # no need to save fringe
+        fringe = [] 
+        expanded_list.append(current_node) 
 
-        fringe_for_this_node = generate_heuristic_children_node(next_one, goal_value, forbidden_list)
+        fringe_for_this_node = generate_heuristic_children_node(current_node, goal_value, forbidden_list)
+  
+        # loop all the children nodes, and put the smallest_h_val_node into the front of fringe
+        # Add children of expanded node to fringe
+        while len(fringe_for_this_node) != 0:
+            child = fringe_for_this_node.pop(0)
+            # regardless of if digit_flag is same in expanded_list, the fringe has to be sort from small h to large h
+            if child.value in [node.value for node in expanded_list] and current_node.is_in_expand_list(expanded_list)== False :
+                # The if-else below inserts the smaller h_val node from children in front of fringe
+                if len(fringe) != 0:
+                    for i in range(len(fringe)):
+                        if fringe[i].h_val >= child.h_val:
+                            fringe.insert(i, child)
+                            break
+                else:
+                    fringe.append(child)
 
-        # Update fringe, then update next_one(actually, fringe is not very useful)
-        fringe = fringe_for_this_node + fringe
+            if child.value not in [node.value for node in expanded_list]:
+                # The if-else below inserts the smaller h_val node from children in front of fringe
+                if len(fringe) != 0:
+                    for i in range(len(fringe)):
+                        if fringe[i].h_val >= child.h_val:
+                            fringe.insert(i, child)
+                            break
+                else:
+                    fringe.append(child)
+        # after the for loop, fringe has a sequence from smallest h_val to largest h_val
         
-        # Update next_one node based on Hill climbing algorithm
-        next_one = get_smallest_h_node_from_list(fringe_for_this_node,next_one)       
-        
-        # check if next_one is in expanded_list, if yes, remove it
-        for each_node in expanded_list:
-            if next_one.expand_equals(each_node)==True: # if x1 is in expanded_list 
-                fringe_for_this_node.remove(next_one)
-                # after remove the next_one, assign the new smallest_h_val node to next_one
-                next_one = get_smallest_h_node_from_list(fringe_for_this_node,next_one=None) 
-                break
-            else:
-                pass
-        # If no repetitive node in fringe_for_this_node after the for loop, then we accept current next_one
-        
-        # print([node.value for node in fringe])
-        # print([node.h_val for node in fringe])
-
         # Corner case: fringe is empty but we still cannot find solution
-        if len(fringe)==0 and next_one.is_number_equals(goal_value)==False: 
-            return next_one, expanded_list
-
+        if len(fringe)==0: 
+            return current_node, expanded_list
+        
+        # To check if 1st node in fringe could be expanded
+        if current_node.h_val < fringe[0].h_val:
+            return current_node, expanded_list
+        else:
+            current_node = fringe.pop(0)        
     #-------------------------------------------------------------------------------
-    # After some time, the while loop condition is false --> we find the goal
-    if next_one.is_number_equals(goal_value):
-        expanded_list.append(next_one)
-    return next_one, expanded_list
-
-#===================================
-# Utility function for hill climb
-def get_smallest_h_node_from_list(children_list,current_node=None):
-    if current_node==None:
-        minimal_h_val = children_list[0].get_Heuristic_val()
-        for each_child in children_list:
-            if minimal_h_val >= each_child.get_Heuristic_val():
-                current_node = copy.deepcopy(each_child)
-        # after the for loop, return the updated node
-        return current_node
-    
-    if current_node!=None:
-        minimal_h_val = current_node.get_Heuristic_val()
-        for each_child in children_list:
-            if minimal_h_val >= each_child.get_Heuristic_val():
-                current_node = copy.deepcopy(each_child)
-        # after the for loop, current_node is the child with smallest h_val (last added considered)
-        return current_node
-
+    expanded_list.append(current_node)
+    return current_node, expanded_list
 
 ############################################################################
 # Greedy Search: Same as Hill-climb, use Heuristic h_n
 ############################################################################
-# returns two variables: next_one, expanded_list
-def greedy_search(start,goal,forbidden_list): # start, goal are int
-    
+# returns two variables: current_node, expanded_list
+def greedy_search(start,goal,forbidden_list):
+
     start_value = Number(value=start, digit_flag=-1,parent=None) 
     start_value.set_1_2_3_digits_and_values( extract_digits_from_value(start) )
     goal_value = Number(value=goal, digit_flag=-1,parent=None) 
     goal_value.set_1_2_3_digits_and_values( extract_digits_from_value(goal) )
-    # After getting goal node, set heuristic
     start_value.set_h_value( calculate_manhattan_h(start_value, goal_value) )
     goal_value.set_h_value( calculate_manhattan_h(goal_value, goal_value) )
 
     expanded_list = []
+    current_node = copy.deepcopy(start_value) 
     fringe = []
-    next_one = copy.deepcopy(start_value) 
     #-------------------------------------------------------------------------------
-    while next_one.is_number_equals(goal_value)==False: 
-        expanded_list.append(next_one) # NOTE: before next loop, we need remove next_one from fringe
-    
-        # Corner Case: if after 1000 loop, no path is found, then just stop
-        if len(expanded_list) == 1000:
-            return next_one, expanded_list
-
-        fringe_for_this_node = generate_heuristic_children_node(next_one, goal_value, forbidden_list)
-
-        # Update fringe, then update next_one(actually, fringe is not very useful)
-        fringe = fringe_for_this_node + fringe
-        
-        # Update next_one node based on Hill climbing algorithm
-        next_one = get_smallest_h_node_from_list(fringe_for_this_node,next_one)       
-        
-        # check if next_one is in expanded_list, if yes, remove it
-        for each_node in expanded_list:
-            if next_one.expand_equals(each_node)==True: # if x1 is in expanded_list 
-                fringe_for_this_node.remove(next_one)
-                # after remove the next_one, assign the new smallest_h_val node to next_one
-                next_one = get_smallest_h_node_from_list(fringe_for_this_node,next_one=None) 
-                break
-            else:
-                pass
-        # If no repetitive node in fringe_for_this_node after the for loop, then we accept current next_one
-        
-        # print([node.value for node in fringe])
-        # print([node.h_val for node in fringe])
+    while current_node.is_number_equals(goal_value)==False and len(expanded_list) < 1000: 
+        expanded_list.append(current_node) 
+        fringe_for_this_node = generate_heuristic_children_node(current_node, goal_value, forbidden_list)
+  
+        for child in fringe_for_this_node:
+            if (child.value in [node.value for node in expanded_list]) and (child.is_in_expand_list(expanded_list)== False):
+                if len(fringe)==0:
+                    fringe.append(child)
+                else:
+                    for i in range(len(fringe)):
+                        node = fringe[i]
+                        if node.h_val >= child.h_val:
+                            fringe.insert(i,child)
+                            break
+                
+            if (child.value not in [node.value for node in expanded_list]):
+                if len(fringe)==0:
+                    fringe.append(child)
+                else:
+                    for i in range(len(fringe)):
+                        node = fringe[i]
+                        if node.h_val >= child.h_val:
+                            fringe.insert(i,child)
+                            break    
 
         # Corner case: fringe is empty but we still cannot find solution
-        if len(fringe)==0 and next_one.is_number_equals(goal_value)==False: 
-            return next_one, expanded_list
-
+        if len(fringe)==0 and current_node.is_number_equals(goal_value)==False: 
+            return current_node, expanded_list
+        
+        # To check if 1st node in fringe could be expanded
+        current_node = fringe.pop(0)        
     #-------------------------------------------------------------------------------
-    # After some time, the while loop condition is false --> we find the goal
-    if next_one.is_number_equals(goal_value):
-        expanded_list.append(next_one)
-    return next_one, expanded_list
-
+    expanded_list.append(current_node)
+    return current_node, expanded_list
 
 ############################################################################
 # A* Search: f_n = Manhattan heuristic + depth_limit_cost
 ############################################################################
-# returns two variables: next_one, expanded_list
-def A_star_search(start,goal,forbidden_list): # start, goal are int
+# returns two variables: current_node, expanded_list
+def A_star_search(start,goal,forbidden_list): 
     
     start_value = Number(value=start, digit_flag=-1,parent=None) 
     start_value.set_1_2_3_digits_and_values( extract_digits_from_value(start) )
     goal_value = Number(value=goal, digit_flag=-1,parent=None) 
     goal_value.set_1_2_3_digits_and_values( extract_digits_from_value(goal) )
-    # After getting goal node, set heuristic
+    # After getting goal node, set heuristic and f_value
     start_value.set_h_value( calculate_manhattan_h(start_value, goal_value) )
     goal_value.set_h_value( calculate_manhattan_h(goal_value, goal_value) )
+    start_value.set_f_val()
+    goal_value.set_f_val()
 
     expanded_list = []
+    current_node = copy.deepcopy(start_value) 
     fringe = []
-    next_one = copy.deepcopy(start_value) 
+
     #-------------------------------------------------------------------------------
-    while next_one.is_number_equals(goal_value)==False: 
-        expanded_list.append(next_one) # NOTE: before next loop, we need remove next_one from fringe
-    
-        # Corner Case: if after 1000 loop, no path is found, then just stop
-        if len(expanded_list) == 1000:
-            return next_one, expanded_list
-
-        fringe_for_this_node = generate_heuristic_children_node(next_one, goal_value, forbidden_list)
-
-        # Update fringe, then update next_one(actually, fringe is not very useful)
-        fringe = fringe_for_this_node + fringe
-        
-        # Update next_one node based on Hill climbing algorithm
-        next_one = get_smallest_h_node_from_list(fringe_for_this_node,next_one)       
-        
-        # check if next_one is in expanded_list, if yes, remove it
-        for each_node in expanded_list:
-            if next_one.expand_equals(each_node)==True: # if x1 is in expanded_list 
-                fringe_for_this_node.remove(next_one)
-                # after remove the next_one, assign the new smallest_h_val node to next_one
-                next_one = get_smallest_h_node_from_list(fringe_for_this_node,next_one=None) 
-                break
-            else:
-                pass
-        # If no repetitive node in fringe_for_this_node after the for loop, then we accept current next_one
-        
-        # print([node.value for node in fringe])
-        # print([node.h_val for node in fringe])
+    while current_node.is_number_equals(goal_value)==False and len(expanded_list) < 1000: 
+        expanded_list.append(current_node) 
+        fringe_for_this_node = generate_heuristic_children_node(current_node, goal_value, forbidden_list)
+  
+        for child in fringe_for_this_node:
+            if (child.value in [node.value for node in expanded_list]) and (child.is_in_expand_list(expanded_list)== False):
+                    
+                if len(fringe)==0:
+                    fringe.append(child)
+                else:
+                    for i in range(len(fringe)):
+                        node = fringe[i]
+                        if node.f_val >= child.f_val:
+                            fringe.insert(i,child)
+                            break
+                
+            if (child.value not in [node.value for node in expanded_list]):
+                
+                if len(fringe)==0:
+                    fringe.append(child)
+                else:
+                    for i in range(len(fringe)):
+                        node = fringe[i]
+                        if node.f_val >= child.f_val:
+                            fringe.insert(i,child)
+                            break
 
         # Corner case: fringe is empty but we still cannot find solution
-        if len(fringe)==0 and next_one.is_number_equals(goal_value)==False: 
-            return next_one, expanded_list
-
+        if len(fringe)==0 and current_node.is_number_equals(goal_value)==False: 
+            return current_node, expanded_list
+        
+        # To check if 1st node in fringe could be expanded
+        current_node = fringe.pop(0)        
     #-------------------------------------------------------------------------------
-    # After some time, the while loop condition is false --> we find the goal
-    if next_one.is_number_equals(goal_value):
-        expanded_list.append(next_one)
-    return next_one, expanded_list
-
-
+    expanded_list.append(current_node)
+    return current_node, expanded_list
 
 ############################################################################
 # Now we can run the script
-############################################################################
+############################################################################  
+if __name__ == '__main__':
+    algorithm = sys.argv[1] # could be: B D I G A H
+    filename = sys.argv[2]
+    # start_state, goal_state,forbidden_states are int/int lists
+    start_state, goal_state,forbidden_states = read_the_input(filename)
+    
+    # set the goal_node for use
+    goal_node = Number(value=goal_state, digit_flag=-1,parent=None) 
+    goal_node.set_1_2_3_digits_and_values( extract_digits_from_value(goal_state) )
+    goal_node.set_h_value( calculate_manhattan_h(goal_node, goal_node) )
+    goal_node.set_f_val()
 
-filename = 'puzzle.txt'
-start, goal,forbidden_list = read_the_input(filename)
+    if algorithm == 'B':
+        next_one, expanded_list = BFS(start_state, goal_state,forbidden_states)
+        if next_one.is_number_equals(goal_node)==True:
+            print_path(next_one)
+            print_expanded_list(expanded_list)
+        else: 
+            print('No solution found.')
+            expanded_list = expanded_list[:-1]
+            print_expanded_list(expanded_list)
 
-next_one, expanded_list = BFS(start,goal,forbidden_list)
-print(next_one.value)
-print([node.value for node in expanded_list])
 
-print_path(next_one)
-print_expanded_list(expanded_list)
+    if algorithm == 'D':
+        next_one, expanded_list = DFS(start_state, goal_state,forbidden_states)
+        if next_one.is_number_equals(goal_node)==True:
+            print_path(next_one)
+            print_expanded_list(expanded_list)
+        else: 
+            print('No solution found.')
+            expanded_list = expanded_list[:-1]
+            print_expanded_list(expanded_list)
+
+    if algorithm == 'I':
+        next_one, expanded_list = IDS(start_state, goal_state,forbidden_states)
+        if next_one.is_number_equals(goal_node)==True:
+            print_path(next_one)
+            print_expanded_list(expanded_list)
+        else: 
+            print('No solution found.')
+            print_expanded_list(expanded_list)
+            
+    if algorithm == 'H':
+        next_one, expanded_list = hill_climb(start_state, goal_state,forbidden_states)
+        if next_one.is_number_equals(goal_node)==True:
+            print_path(next_one)
+            print_expanded_list(expanded_list)
+        else: 
+            print('No solution found.')
+            print_expanded_list(expanded_list)
+
+    if algorithm == 'G':
+        next_one, expanded_list = greedy_search(start_state, goal_state,forbidden_states)
+        if next_one.is_number_equals(goal_node)==True:
+            print_path(next_one)
+            print_expanded_list(expanded_list)
+        else: 
+            print('No solution found.')
+            print_expanded_list(expanded_list)
+
+    if algorithm == 'A':
+        next_one, expanded_list = A_star_search(start_state, goal_state,forbidden_states)
+        if next_one.is_number_equals(goal_node)==True:
+            print_path(next_one)
+            print_expanded_list(expanded_list)
+        else: 
+            print('No solution found.')
+            print_expanded_list(expanded_list)
